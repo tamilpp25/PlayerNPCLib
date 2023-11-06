@@ -1,13 +1,13 @@
 package dev.crystall.playernpclib.wrapper;
 
-import com.comphenix.protocol.reflect.IntEnum;
+
 
 /**
  * Enum containing all known modes.
  *
  * @author dmulloy2
  */
-public class TeamMode extends IntEnum {
+public class TeamMode {
 
   public static final int TEAM_CREATED = 0;
   public static final int TEAM_REMOVED = 1;
