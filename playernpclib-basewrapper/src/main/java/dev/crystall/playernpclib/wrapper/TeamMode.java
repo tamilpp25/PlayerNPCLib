@@ -1,5 +1,6 @@
 package dev.crystall.playernpclib.wrapper;
 
+
 import com.comphenix.protocol.reflect.IntEnum;
 
 /**
