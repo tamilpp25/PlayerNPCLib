@@ -20,11 +20,11 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.Setter;
-import me.filoghost.holographicdisplays.api.HolographicDisplaysAPI;
-import me.filoghost.holographicdisplays.api.hologram.Hologram;
-import me.filoghost.holographicdisplays.api.hologram.VisibilitySettings.Visibility;
+import net.kyori.adventure.text.Component;
 import org.bukkit.Location;
+import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
+import org.bukkit.entity.TextDisplay;
 import org.bukkit.inventory.ItemStack;
 
 /**
@@ -39,7 +39,7 @@ public abstract class BasePlayerNPC {
   private final UUID uuid = UUID.randomUUID();
   private boolean isSpawned = false;
   private final Map<ItemSlot, ItemStack> itemSlots = new EnumMap<>(ItemSlot.class);
-  private final Hologram hologram;
+  private final TextDisplay hologram;
 
   /**
    * The id the entity will be registered with at the player client. This should not collide with any existing entity at the server
@@ -63,8 +63,8 @@ public abstract class BasePlayerNPC {
     this.location = location;
     this.eyeLocation = location;
     this.entityId = EntityManager.ENTITY_ID_COUNTER.getAndDecrement();
-    this.hologram = HolographicDisplaysAPI.get(PlayerNPCLib.getPlugin()).createHologram(this.location.clone().add(0, 2.25, 0));
-    this.hologram.getVisibilitySettings().setGlobalVisibility(Visibility.HIDDEN);
+    this.hologram = (TextDisplay) location.getWorld().spawnEntity(location.add(0,2.25,0), EntityType.TEXT_DISPLAY);
+    hologram.setVisibleByDefault(false);
     this.internalName = uuid.toString().substring(0, 16);
     setDisplayName(displayName);
   }
@@ -79,8 +79,7 @@ public abstract class BasePlayerNPC {
   }
 
   public void spawn(List<Player> showTo) {
-    this.hologram.getVisibilitySettings().clearIndividualVisibilities();
-
+    showTo.forEach(i -> i.showEntity(PlayerNPCLib.getPlugin(), i));
     for (Player player : showTo) {
       show(player);
     }
@@ -94,7 +93,7 @@ public abstract class BasePlayerNPC {
     isSpawned = false;
 
     if (this.hologram != null) {
-      this.hologram.delete();
+      this.hologram.remove();
     }
 
     for (Player player : getVisibleTo()) {
@@ -125,7 +124,7 @@ public abstract class BasePlayerNPC {
     PacketManager.sendEquipmentPackets(player, this);
     PacketManager.sendScoreBoardTeamPacket(player, this);
     if (hologram != null) {
-      hologram.getVisibilitySettings().setIndividualVisibility(player, Visibility.VISIBLE);
+      player.showEntity(PlayerNPCLib.getPlugin(), hologram);
       updateDisplayName();
     }
   }
@@ -138,7 +137,7 @@ public abstract class BasePlayerNPC {
     PacketManager.sendHidePackets(player, this);
     PlayerNPCLib.getEntityHider().setVisibility(player, getEntityId(), false);
     if (hologram != null) {
-      hologram.getVisibilitySettings().setIndividualVisibility(player, Visibility.HIDDEN);
+        player.hideEntity(PlayerNPCLib.getPlugin(), hologram);
     }
   }
 
@@ -153,22 +152,22 @@ public abstract class BasePlayerNPC {
   }
 
   private void updateDisplayName() {
-    if (hologram != null && !hologram.isDeleted()) {
-      hologram.getLines().clear();
+    if (hologram != null && !hologram.isDead()) {
+      hologram.text();
       if (displayName != null && !displayName.isEmpty()) {
-        hologram.getLines().insertText(0, displayName);
+        hologram.text(Component.text(displayName));
       }
       for (int i = 1; i <= subNames.size(); i++) {
-        hologram.getLines().insertText(i, subNames.get(i - 1));
+        hologram.text(hologram.text().append(Component.text("\n" + subNames.get(i-1))));
       }
       updateHologram();
     }
   }
 
   public void updateHologram() {
-    if (hologram != null && !hologram.isDeleted()) {
+    if (hologram != null && !hologram.isDead()) {
       var variableHeight = subNames.size() * 0.25F;
-      hologram.setPosition(this.location.clone().add(0, variableHeight + 2.25F, 0));
+      hologram.teleport(this.location.clone().add(0, variableHeight + 2.25F, 0));
     }
   }
 
@@ -248,8 +247,7 @@ public abstract class BasePlayerNPC {
     if (!visibilityRestricted) {
       this.shownTo.clear();
     }
-    hologram.getVisibilitySettings().clearIndividualVisibilities();
-    hologram.getVisibilitySettings().setGlobalVisibility(visibilityRestricted ? Visibility.HIDDEN : Visibility.VISIBLE);
+    hologram.setViewRange(visibilityRestricted ? 0 : Constants.NPC_VISIBILITY_RANGE);
   }
 
   /**
